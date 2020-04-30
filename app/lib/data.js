@@ -53,6 +53,7 @@ lib.read = function(dir, fileName, callback) {
 
 lib.update = function(dir, fileName, data, callback) {
     // try to open the file
+    console.log("lib.update data:",data);
     fs.open(lib.baseDir+dir+"/"+fileName+".json",'r+',function(err, fileDescriptor) {
         if(!err && fileDescriptor) {
             let stringifiedData = JSON.stringify(data);
@@ -78,7 +79,7 @@ lib.update = function(dir, fileName, data, callback) {
                 }
             });
         } else {
-            callback("Could not upate file. May not exist yet.")
+            callback("Could not update file. May not exist yet.")
         }
     });
 

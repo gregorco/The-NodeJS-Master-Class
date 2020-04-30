@@ -3,7 +3,8 @@
 const config = require('./config');
 const crypto = require('crypto');
 
-let utils = {};
+let utils = {
+};
 
 
 utils.hash = function(str) {
@@ -23,6 +24,21 @@ utils.parseJsonToObj = function(str) {
   catch(e) {
       return {};
   }
+};
+utils.getRandomSection = function() {
+    return Math.random().toString(36).substring(2, 15);
+};
+utils.getRandomString = function(maxSize) {
+    if(typeof(maxSize) == 'number') {
+
+        let randStr = utils.getRandomSection();
+        while (randStr.length < maxSize) {
+            randStr += utils.getRandomSection();
+        }
+        return randStr.substr(0, maxSize);
+    } else {
+        return false;
+    }
 };
 
 
