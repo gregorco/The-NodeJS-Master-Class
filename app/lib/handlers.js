@@ -1,7 +1,8 @@
 
 
 const _data = require('./data');
-const utils = require('./utils')
+const utils = require('./utils');
+const config = require('./config');
 
 let handlers = {};
 
@@ -40,6 +41,7 @@ handlers._users = {};
 // Create user
 // Required properties: firstName, lastName, phone, password, tosAgreement
 handlers._users.post = function(data, callback) {
+    console.log("users:post: ",data);
     // verify that all required properties were sent
     let missingProperties = '';
     if(typeof(data.payload.firstName) != 'string' || data.payload.firstName.trim().length == 0) {
@@ -417,6 +419,93 @@ handlers._tokens.verifyToken = function(tokenId, phone, callback) {
         });
     } else {
         callback(false);
+    }
+}
+
+// ================================================================================================================
+
+handlers.checks = function(data,callback) {
+    console.log("handlers.checks: callback inputdata:",data);
+    let acceptableMethods = ['post','get','put','delete'];
+    if(acceptableMethods.indexOf(data.method.toLowerCase()) != -1) {
+        handlers._checks[data.method.toLowerCase()](data, callback);
+    } else {
+        callback("Invalid REST method requested: "+data.method);
+    }
+};
+
+handlers._checks = {};
+// Create user
+// Required properties: firstName, lastName, phone, password, tosAgreement
+handlers._checks.post = function(data, callback) {
+    console.log("checks:post: ",data);
+    // verify that all required properties were sent
+    let protocol = typeof(data.payload.protocol) == 'string' && ['http','https'].indexOf(data.payload.protocol.trim().toLowerCase()) > -1 ? data.payload.protocol.trim().toLowerCase(): false;
+    let url = typeof(data.payload.url) == 'string' && data.payload.url.trim().length > 0 ? data.payload.url : false;
+    let method = typeof(data.payload.method) == 'string' && ['post','get','put','delete'].indexOf(data.payload.method.trim().toLowerCase()) > -1 ? data.payload.method.trim().toLowerCase(): false;
+    let successCodes = typeof(data.payload.successCodes) == 'object' && data.payload.successCodes instanceof Array  && data.payload.successCodes.length > 0 ? data.payload.successCodes : false;
+    let timeoutSeconds = typeof(data.payload.timeoutSeconds) == 'number' && data.payload.timeoutSeconds % 1 === 0 && data.payload.timeoutSeconds >= 1 && data.payload.timeoutSeconds <= 5 ? data.payload.timeoutSeconds : false;
+
+    if(protocol && url && method && successCodes && timeoutSeconds) {
+
+        // authenticate the user
+        let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
+        if(tokenId) {
+            // check that this token is valid for the given user/phone
+            _data.read('tokens', tokenId, function (err, tokenObj) {
+                if (!err && tokenObj && tokenObj.expires > Date.now()) {
+                    let phone = tokenObj.phone;
+
+                    // store the checks with this user's phone
+                    _data.read('users', phone, function (err, userObj) {
+                        if (!err && userObj) {
+                            // update the user object to add a check to its check's list
+                            let userChecks = typeof (userObj.checks) == 'object' && userObj.checks instanceof Array ? userObj.checks : [];
+                            // prevent user from exceeding max checks
+                            if (userChecks.length < config.maxChecks) {
+                                // add new check
+                                let checkId = utils.getRandomString(20);
+                                let checkObj = {
+                                    'id': checkId,
+                                    'userPhone': phone,
+                                    'protocol': protocol,
+                                    'url': url,
+                                    'method': method,
+                                    'successCodes': successCodes,
+                                    'timeoutSeconds': timeoutSeconds
+                                };
+                                _data.create('checks', checkId, checkObj, function (err) {
+                                    if (!err) {
+                                        userObj.checks = userChecks;
+                                        userObj.checks.push(checkId);
+                                        _data.update('users', phone, userObj, function (err) {
+                                            if (!err) {
+                                                callback(200, checkObj);
+                                            } else {
+                                                callback(500, {'Error': 'Failed to update user object.'});
+                                            }
+                                        });
+                                    } else {
+                                        callback(500, {'Error': err});
+                                    }
+                                });
+
+                            } else {
+                                callback(400, {'Error': 'Max checks already reached. Delete one and try again.'})
+                            }
+                        } else {
+                            callback(403);
+                        }
+                    });
+                } else {
+                    callback(403);
+                }
+            });
+        } else {
+            callback(400, {'Error': 'Missing/invalid properties.'});
+        }
+    } else {
+        callback(400, {'Error': 'Missing/invalid properties.'});
     }
 }
 

@@ -4,7 +4,8 @@ environments.staging = {
   'httpPort': 8081,
   'httpsPort': 8082,
   'envName': 'staging',
-  'hashingKey' : 'myStagingSecretKey'
+  'hashingKey' : 'myStagingSecretKey',
+  'maxChecks' : 5
 };
 
 
@@ -12,7 +13,8 @@ environments.production = {
   'httpPort': 8091,
   'httpsPort': 8092,
   'envName': 'production',
-  'hashingKey' : 'myProdSecretKey'
+  'hashingKey' : 'myProdSecretKey',
+  'maxChecks' : 5
 };
 
 let currentEnv = typeof(process.env.NODE_ENV) == 'string' ?
