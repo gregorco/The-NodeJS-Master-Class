@@ -9,7 +9,7 @@ const utils = require('./utils')
 
 let lib = {};
 
-lib.baseDir = path.join(__dirname,'../.data/');
+lib.baseDir = path.join(__dirname,'/../.data/');
 
 // write file
 lib.create = function(dir, fileName, data, callback) {
@@ -40,8 +40,8 @@ lib.create = function(dir, fileName, data, callback) {
 lib.read = function(dir, fileName, callback) {
     // open file
     fs.readFile(lib.baseDir+dir+"/"+fileName+".json", 'utf8', function(err, data) {
-        console.log('_data.read err:',err);
-        console.log('_data.read data:',data);
+        //console.log('_data.read err:',err);
+        //console.log('_data.read data:',data);
         if(!err && data) {
             callback(false, utils.parseJsonToObj(data));
         } else {
@@ -53,7 +53,7 @@ lib.read = function(dir, fileName, callback) {
 
 lib.update = function(dir, fileName, data, callback) {
     // try to open the file
-    console.log("lib.update data:",data);
+    //console.log("lib.update data:",data);
     fs.open(lib.baseDir+dir+"/"+fileName+".json",'r+',function(err, fileDescriptor) {
         if(!err && fileDescriptor) {
             let stringifiedData = JSON.stringify(data);
