@@ -1,12 +1,14 @@
+"use strict";
 // utilities
 
 const config = require('./config');
 const crypto = require('crypto');
 const querystring = require('querystring')
 const https = require('https');
+const util = require('util');
+const debug = util.debuglog('utils');
 
-let utils = {
-};
+let utils = {};
 
 
 utils.hash = function(str) {
@@ -20,10 +22,12 @@ utils.hash = function(str) {
 
 
 utils.parseJsonToObj = function(str) {
+    debug('parseJsonToObj::str',str);
   try {
       return JSON.parse(str);
   }
   catch(e) {
+      debug('parseJsonToObj::e',e);
       return {};
   }
 };
@@ -77,8 +81,8 @@ utils.sendTwilioSms = function(phone, msg, callback) {
             if(status == 200 || status == 201) {
                 callback(false);
             } else {
-                console.log('Status code was '+status);
-                console.log('twilio res:',res);
+                debug('Status code was '+status);
+                debug('twilio res:',res);
                 callback(status);
             }
         });
@@ -90,7 +94,7 @@ utils.sendTwilioSms = function(phone, msg, callback) {
 
         // add the payload
         req.write(payloadString);
-        console.log('utils.twilio sending req',req);
+        debug('utils.twilio sending req',req);
         req.end();
 
     } else {

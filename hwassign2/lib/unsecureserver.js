@@ -105,11 +105,13 @@ class UnsecureServer {
                     chosenHandler = this.routerMap[chosenPath];
                 }
                 debug("chosenHandler=", chosenHandler);
+                let payloadJsonObj = utils.parseJsonToObj(buffer);
+                debug('payloadJsonObj:',payloadJsonObj);
                 let inputData = {
                     'method': req.method,
                     'trimmedPath': trimmedPath,
                     'headers': headers,
-                    'payload': utils.parseJsonToObj(buffer),
+                    'payload': payloadJsonObj,
                     'queryStringObject': queryStrObj
                 };
                 debug("inputData: ", inputData);
@@ -147,5 +149,11 @@ class UnsecureServer {
 
 };
 
+
+let t1 = utils.parseJsonToObj('{\n' +
+    '        "phone": "8833727101",\n' +
+    '        "password": "mypassw01"\n' +
+    '}');
+debug('t1:',t1);
 
 module.exports = UnsecureServer;

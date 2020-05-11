@@ -7,14 +7,16 @@ let choices = ['staging','production'];
 environments.staging = {
     'envName':      'staging',
     'httpPort':     '3001',
-    'httpsPort':    '3002'
+    'httpsPort':    '3002',
+    'hashingKey' : 'myStagingSecretKey'
 };
 
 
 environments.production = {
     'envName':      'production',
     'httpPort':     '4001',
-    'httpsPort':    '4002'
+    'httpsPort':    '4002',
+    'hashingKey' : 'myStagingSecretKey'
 };
 
 let choice = typeof(process.env.NODE_ENV) == 'string' && process.env.NODE_ENV.length > 0
