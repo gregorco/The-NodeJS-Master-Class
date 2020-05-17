@@ -3,13 +3,13 @@
  * A subclass of the Router class, that handles Token requests
  */
 // dependencies
-const _data = require('./data');
-const Router = require('./router');
+const _data = require('../data');
+const CrudRouter = require('./CrudRouter');
+const utils = require('../utils');
 const util = require('util');
-const debug = util.debuglog('router_token');
-const utils = require('./utils');
+const debug = util.debuglog('TokenCrudRouter');
 
-class TokenRouter extends Router {
+class TokenCrudRouter extends CrudRouter {
     constructor() {
         super();
         debug('constructor');
@@ -29,8 +29,6 @@ class TokenRouter extends Router {
         if(!phone || !password) {
             callback(400, {'Error': 'Missing/invalid properties: '+missingProperties});
         } else {
-            let phone = data.payload.phone;
-            let password = data.payload.password;
             // check if this user already exists
             _data.read('users',phone, function(err,userData) {
                 debug('POST: _data.read err:',err);
@@ -187,4 +185,4 @@ class TokenRouter extends Router {
 }
 
 
-module.exports = TokenRouter;
+module.exports = TokenCrudRouter;

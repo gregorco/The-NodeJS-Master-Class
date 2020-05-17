@@ -8,10 +8,8 @@ const http = require('http');
 const url  = require('url');
 const util = require('util');
 const StringDecoder = require('string_decoder').StringDecoder;
-const debug = util.debuglog('unsecureserver');
-const utils = require('./utils');
-
-//const Router = require('./router');
+const debug = util.debuglog('UnsecureServer');
+const utils = require('../utils');
 
 class UnsecureServer {
     constructor(portNum, envName) {
@@ -20,16 +18,11 @@ class UnsecureServer {
         this.port = portNum;
         this.routerMap = {
             'user': this.userRouter,
-            'token':this.tokenRouter
+            'token':this.tokenRouter,
+            'login':this.loginRouter
         };
     }
 
-    set router(rtr) {
-        this._router = rtr;
-    }
-    get router() {
-        return this._router;
-    }
     set userRouter(rtr) {
         this._userRouter = rtr;
         this.routerMap['user'] = this._userRouter;
@@ -43,6 +36,13 @@ class UnsecureServer {
     }
     get tokenRouter() {
         return this._tokenRouter;
+    }
+    set loginRouter(rtr) {
+        this._loginRouter = rtr;
+        this.routerMap['login'] = this._loginRouter;
+    }
+    get loginRouter() {
+        return this._loginRouter;
     }
     getTimestamp(date) {
         return {  unix: date.getTime(),  utc: date.toUTCString()};
@@ -66,8 +66,6 @@ class UnsecureServer {
     parse (req, res, handlerCallback) {
         let parsedUrl = url.parse(req.url, true);
         debug('parsedUrl:',parsedUrl);
-
-//        this.router.route(req, res);
 
         // get path
         let pathName = parsedUrl.pathname;

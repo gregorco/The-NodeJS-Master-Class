@@ -10,6 +10,9 @@ Here's the spec from your project manager:
 address, and street address.
 
 2. Users can log in and log out by creating or destroying a token.
+ - [?] how to do this?
+   - [?] explicit login with POST and path "/login", with email and password in body, then if email and password match
+   to existing user, then generate and return token that can expire.
 
 3. When a user is logged in, they should be able to GET all the possible menu items (these items can be hardcoded into
 the system).

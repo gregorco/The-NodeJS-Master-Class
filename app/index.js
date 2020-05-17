@@ -5,8 +5,6 @@
 // dependencies
 let server = require('./lib/server');
 let workers = require('./lib/workers');
-let utils = require('./lib/utils');
-
 
 let app = {};
 

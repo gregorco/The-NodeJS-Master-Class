@@ -3,14 +3,14 @@
  * A subclass of the Router class, that handles User requests
  */
 // dependencies
-const Router = require('./router');
+const CrudRouter = require('./CrudRouter');
 const util = require('util');
-const debug = util.debuglog('router_user');
-const User = require('./user');
-const _data = require('./data');
-const utils = require('./utils');
+const utils = require('../utils');
+const _data = require('../data');
+const debug = util.debuglog('UserCrudRouter');
+const User = require('../User');
 
-class UserRouter extends Router {
+class UserCrudRouter extends CrudRouter {
     constructor() {
         super();
         debug('constructor');
@@ -18,7 +18,8 @@ class UserRouter extends Router {
     }
 
     // Create user
-    // Required properties: firstName, lastName, phone, password, tosAgreement
+    // Required properties: firstName, lastName, emailAddr, phone, password, tosAgreement
+    // Optional properties: streetAddr
     post(data, callback) {
         debug("users:post: ",data);
         // verify that all required properties were sent
@@ -37,12 +38,11 @@ class UserRouter extends Router {
             ? data.payload.streetAddr.trim() : false;
         let tosAgreement = typeof(data.payload.tosAgreement) == 'boolean' ? data.payload.tosAgreement : false;
 
-        if(!firstName || !lastName || !phone || !password || !emailAddr || !streetAddr || !tosAgreement) {
+        if(!firstName || !lastName || !phone || !password || !emailAddr || !tosAgreement) {
             if (!firstName) missingProperties += "firstName";
             if (!lastName) missingProperties += ",lastName";
             if (!phone) missingProperties += ",phone";
             if (!emailAddr) missingProperties += ",emailAddr";
-            if (!streetAddr) missingProperties += ",streetAddr";
             if (!tosAgreement) missingProperties += ",tosAgreement";
             if (!password) missingProperties += ",password";
             callback(400, {'Error': 'Missing/invalid properties: '+missingProperties+'\n'+JSON.stringify(data.payload)});
@@ -140,7 +140,7 @@ class UserRouter extends Router {
             let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
             if(tokenId) {
                 // check that this token is valid for the given user/phone
-                handlers._tokens.verifyToken(tokenId, phone, function(isValidToken) {
+                _data.verifyToken(tokenId, phone, function(isValidToken) {
                     if(isValidToken) {
                         // get the existing user object
                         _data.read('users',phone,function(err, userObj) {
@@ -247,4 +247,4 @@ class UserRouter extends Router {
 }
 
 
-module.exports = UserRouter;
+module.exports = UserCrudRouter;

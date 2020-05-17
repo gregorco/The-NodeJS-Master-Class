@@ -6,13 +6,14 @@
 // dependencies
 const http = require('http');
 const config = require('./lib/config');
-const UnsecureServer = require('./lib/unsecureserver');
-const SecureServer = require('./lib/secureserver');
+const UnsecureServer = require('./lib/servers/UnsecureServer');
+const SecureServer = require('./lib/servers/SecureServer');
 const fs = require('fs');
 const path = require('path');
-const Router = require('./lib/router');
-const UserRouter = require('./lib/router_user');
-const TokenRouter = require('./lib/router_token');
+const Router = require('./lib/routers/Router');
+const UserCrudRouter = require('./lib/routers/UserCrudRouter');
+const TokenCrudRouter = require('./lib/routers/TokenCrudRouter');
+const LoginRouter = require('./lib/routers/LoginRouter');
 
 let app = {};
 
@@ -26,19 +27,20 @@ app.init  = function() {
     console.log('env = ', config);
 
     // initialize all routers
-    let router = new Router();
-    let userRouter = new UserRouter();
-    let tokenRouter = new TokenRouter();
+    let userRouter = new UserCrudRouter();
+    let tokenRouter = new TokenCrudRouter();
+    let loginRouter = new LoginRouter();
 
     // initialize servers, http and https
     let serverHttp = new UnsecureServer(config.httpPort, config.envName);
-    serverHttp.router = router;
     serverHttp.userRouter = userRouter;
     serverHttp.tokenRouter = tokenRouter;
+    serverHttp.loginRouter = loginRouter;
+
     let serverHttps = new SecureServer(options, config.httpsPort, config.envName);
-    serverHttps.router = router;
     serverHttps.userRouter = userRouter;
     serverHttps.tokenRouter = tokenRouter;
+    serverHttps.loginRouter = loginRouter;
 
     serverHttp.init();
     serverHttps.init();
@@ -50,3 +52,4 @@ app.init  = function() {
 
 app.init();
 
+module.exports = app;

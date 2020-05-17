@@ -1,31 +1,32 @@
 "use strict";
 /*
- * Router class to handle routing http/https requests.
+ * Class to handle routing http/https requests of CRUD operations
  */
 
 // dependencies
-const util = require('util');
-const debug = util.debuglog('router');
 const url   = require('url');
+const Router = require('./Router');
+const util = require('util');
+const debug = util.debuglog('CrudRouter');
 
-class Router {
+class CrudRouter extends Router {
     constructor() {
+        super();
         debug('Instantiated Router.');
     }
-    route(inputData, callback) {
+/*    route(inputData, callback) {
         debug('inputData:', inputData);
         this.dispatch(inputData,  callback);
-//        callback(200, 'Hello\n')
     }
-
+*/
     dispatch(data, callback) {
-        debug("callback inputdata:",data);
-        let acceptableMethods = ['post','get','put','delete'];
+        debug("callback inputdata:", data);
+        let acceptableMethods = ['post', 'get', 'put', 'delete'];
         let reqMethod = data.method.toLowerCase();
-        if(acceptableMethods.indexOf(reqMethod) != -1) {
+        if (acceptableMethods.indexOf(reqMethod) != -1) {
             this[reqMethod](data, callback);
         } else {
-            callback("Invalid REST method requested: "+data.method);
+            callback("Invalid REST method requested: " + data.method);
         }
     }
 
@@ -51,4 +52,4 @@ class Router {
 
 }
 
-module.exports = Router;
+module.exports = CrudRouter;

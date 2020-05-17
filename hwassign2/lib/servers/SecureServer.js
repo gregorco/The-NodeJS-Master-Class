@@ -2,10 +2,10 @@
 /*
  * Secure server class
  */
-const UnsecureServer = require('./unsecureserver');
+const UnsecureServer = require('./UnsecureServer');
 const https = require('https');
 const util = require('util');
-const debug = util.debuglog('secureserver');
+const debug = util.debuglog('SecureServer');
 
 class SecureServer extends UnsecureServer {
     constructor(options, port, envName) {
