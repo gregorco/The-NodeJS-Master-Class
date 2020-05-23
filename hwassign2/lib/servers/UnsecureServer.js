@@ -19,7 +19,8 @@ class UnsecureServer {
         this.routerMap = {
             'user': this.userRouter,
             'token':this.tokenRouter,
-            'login':this.loginRouter
+            'login':this.loginRouter,
+            'logout':this.logoutRouter
         };
     }
 
@@ -43,6 +44,13 @@ class UnsecureServer {
     }
     get loginRouter() {
         return this._loginRouter;
+    }
+    set logoutRouter(rtr) {
+        this._logoutRouter = rtr;
+        this.routerMap['logout'] = this._logoutRouter;
+    }
+    get logoutRouter() {
+        return this._logoutRouter;
     }
     getTimestamp(date) {
         return {  unix: date.getTime(),  utc: date.toUTCString()};

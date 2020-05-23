@@ -14,6 +14,7 @@ const Router = require('./lib/routers/Router');
 const UserCrudRouter = require('./lib/routers/UserCrudRouter');
 const TokenCrudRouter = require('./lib/routers/TokenCrudRouter');
 const LoginRouter = require('./lib/routers/LoginRouter');
+const LogoutRouter = require('./lib/routers/LogoutRouter');
 
 let app = {};
 
@@ -30,17 +31,20 @@ app.init  = function() {
     let userRouter = new UserCrudRouter();
     let tokenRouter = new TokenCrudRouter();
     let loginRouter = new LoginRouter();
+    let logoutRouter = new LogoutRouter();
 
     // initialize servers, http and https
     let serverHttp = new UnsecureServer(config.httpPort, config.envName);
     serverHttp.userRouter = userRouter;
     serverHttp.tokenRouter = tokenRouter;
     serverHttp.loginRouter = loginRouter;
+    serverHttp.logoutRouter = logoutRouter;
 
     let serverHttps = new SecureServer(options, config.httpsPort, config.envName);
     serverHttps.userRouter = userRouter;
     serverHttps.tokenRouter = tokenRouter;
     serverHttps.loginRouter = loginRouter;
+    serverHttps.logoutRouter = logoutRouter;
 
     serverHttp.init();
     serverHttps.init();
