@@ -5,13 +5,13 @@
 // dependencies
 const fs = require('fs');
 const _data = require('../data');
-const Router = require('./Router');
+const RpcRouter = require('./RpcRouter');
 const utils = require('../utils');
 const util = require('util');
 const debug = util.debuglog('LoginRouter');
 
 
-class LoginRouter extends Router {
+class LoginRouter extends RpcRouter {
     constructor() {
         super();
         debug('constructor');
@@ -47,14 +47,14 @@ class LoginRouter extends Router {
         } else {
             // check if this user already exists by searching all user's for a matching emailAddr
             // get all the checks
-            _data.list('users', function(err, userPhoneNumbers) {
-                if(!err && userPhoneNumbers && userPhoneNumbers.length > 0) {
+            _data.list('users', function(err, uids) {
+                if(!err && uids && uids.length > 0) {
                     let foundUser = false;
                     let usersProcessed = 0;
-                    userPhoneNumbers.forEach(async function(userPhoneNumber){
+                    uids.forEach(async function(uid){
                         // read in the user data
-                        debug('Comparing to ',userPhoneNumber);
-                        await _data.read('users', userPhoneNumber, async function (err, userData) {
+                        debug('Comparing to ',uid);
+                        await _data.read('users', uid, async function (err, userData) {
                             usersProcessed++;
                             if (!err && userData) {
                                 // does this user's email and password match the user logging in?
@@ -66,9 +66,10 @@ class LoginRouter extends Router {
                                             let tokenId = utils.getRandomString(20);
                                             // define expiration date
                                             let expireDate = Date.now() + 1000 * 60 * 60;
+                                            debug("New token "+tokenId+" expires: "+new Date(expireDate));
                                             let tokenObj = {
-                                                'phone': userData.phone,
-                                                'emailAddr': userData.emailAddr,
+                                                'uid': uid,
+//                                                'emailAddr': userData.emailAddr,
                                                 'tokenId': tokenId,
                                                 'expires': expireDate
                                             };
@@ -89,7 +90,7 @@ class LoginRouter extends Router {
                                             callback(400, {'Error': 'Incorrect password.'})
                                         }
                                     } else {
-                                        if (usersProcessed == userPhoneNumbers.length && !foundUser && !sentCallback) {
+                                        if (usersProcessed == uids.length && !foundUser && !sentCallback) {
                                             sentCallback = true;
                                             debug('User not found.');
                                             callback(400, {'Error':'User not found.'});

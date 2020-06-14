@@ -18,10 +18,11 @@ address, and street address.
    [/] have router for /logout that gets tokenId from headers and userId from body
    [X] match userId to token and if match then delete token
     - 22:23 chose to use POST method with tokenId in request header and nothing in body and works as far as I can tell.
-3. When a user is logged in, they should be able to GET all the possible menu items (these items can be hardcoded into
+3. [/] When a user is logged in, they should be able to GET all the possible menu items (these items can be hardcoded into
 the system).
 
 4. A logged-in user should be able to fill a shopping cart with menu items
+ 5/29/2020@23:43 working - with both separate cart document and embedded cart doc inside user doc.
 
 5. A logged-in user should be able to create an order. You should integrate with the Sandbox of Stripe.com to accept
 their payment. Note: Use the stripe sandbox for your testing. Follow this link and click on the "tokens" tab to see the

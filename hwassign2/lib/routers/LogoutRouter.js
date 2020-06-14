@@ -5,13 +5,13 @@
 // dependencies
 const fs = require('fs');
 const _data = require('../data');
-const Router = require('./Router');
+const RpcRouter = require('./RpcRouter');
 const utils = require('../utils');
 const util = require('util');
 const debug = util.debuglog('LogoutRouter');
 
 
-class LogoutRouter extends Router {
+class LogoutRouter extends RpcRouter {
     constructor() {
         super();
         debug('constructor');

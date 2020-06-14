@@ -5,17 +5,23 @@
 
 const utils = require('./utils');
 const fs = require('fs');
+const fsPromises = fs.promises;
 const path = require('path');
 const util = require('util');
 const debug = util.debuglog('data');
 
+const handle = (promise) => {
+    return promise
+        .then(data => ([undefined, data]))
+        .catch(error => Promise.resolve([error, undefined]));
+}
 
 let lib = {};
 
 lib.baseDir = path.join(__dirname,'/../.data/');
 
 // write file
-lib.create = function(dir, fileName, data, callback) {
+lib.create_old = function(dir, fileName, data, callback) {
     // try to open the file
     fs.open(lib.baseDir+dir+"/"+fileName+".json",'wx',function(err, fileDescriptor) {
         if(!err && fileDescriptor) {
@@ -37,10 +43,50 @@ lib.create = function(dir, fileName, data, callback) {
             callback("Could not create file. May already exist.")
         }
     });
-
 };
 
-lib.read = function(dir, fileName, callback) {
+// write file
+lib.create_old2 = async function(dir, fileName, data) {
+    // try to open the file
+    let filehandle = null;
+    filehandle = await fsPromises.open(lib.baseDir+dir+"/"+fileName+".json",'wx')
+        .catch(() => Promise.reject(new Error("Could not create file. May already exist.")));
+    let stringifiedData = JSON.stringify(data);
+    await fsPromises.writeFile(filehandle, stringifiedData)
+        .catch(() => Promise.reject(new Error("Failed to write new file: "+fileName)));
+    if (filehandle !== undefined) {
+        await filehandle.close()
+            .catch(() => Promise.reject(new Error('Error closing file: '+fileName)));
+    }
+};
+
+// write file
+lib.create = async function(dir, fileName, data) {
+    // try to open the file
+    let [openErr, fileHandle] = await handle(fsPromises.open(lib.baseDir+dir+"/"+fileName+".json",'wx'));
+    if(openErr) throw new Error("Could not create file. May already exist.");
+
+    let stringifiedData = JSON.stringify(data);
+
+    let [writeErr, voidVal] = await handle(fsPromises.writeFile(fileHandle, stringifiedData));
+    if(writeErr) throw new Error("Failed to write new file: "+fileName);
+
+    if (fileHandle !== undefined) {
+        let [closeErr, voidVal2] = await handle(fileHandle.close());
+        if (closeErr) throw new Error('Error closing file: '+fileName);
+    }
+};
+
+lib.read = async function(dir, fileName) {
+    // open file
+    let [readErr, data] = await handle(fsPromises.readFile(lib.baseDir+dir+"/"+fileName+".json", 'utf8'));
+    if (readErr) throw new Error(readErr);
+
+    return utils.parseJsonToObj(data);
+};
+
+
+lib.read_old = function(dir, fileName, callback) {
     // open file
     fs.readFile(lib.baseDir+dir+"/"+fileName+".json", 'utf8', function(err, data) {
         //console.log('_data.read err:',err);
@@ -52,7 +98,6 @@ lib.read = function(dir, fileName, callback) {
         }
     });
 };
-
 
 lib.update = function(dir, fileName, data, callback) {
     // try to open the file
@@ -117,15 +162,16 @@ lib.list = function(dir, callback) {
 
 
 
-lib.verifyToken = function(tokenId, phone, callback) {
+lib.verifyToken = function(tokenId, uid, callback) {
     let tokId = (typeof(tokenId) == 'string' && tokenId.trim().length == 20 ? tokenId.trim(): false);
 
     if(tokId) {
         // get the existing  object
         lib.read('tokens',tokId,function(err, tokenObj) {
             if (!err && tokenObj) {
-                // check that the phone associated with the token matches the given phone and that the token has not already expired as of now
-                if(tokenObj.phone == phone && tokenObj.expires > Date.now()) {
+                debug("tokenObj.expires=",new Date(tokenObj.expires));
+                // check that the uid associated with the token matches the given uid and that the token has not already expired as of now
+                if(tokenObj.expires > Date.now() && tokenObj.uid == uid) {
                     callback(true);
                 } else {
                     callback(false);
@@ -138,7 +184,6 @@ lib.verifyToken = function(tokenId, phone, callback) {
         callback(false);
     }
 }
-
 
 
 module.exports = lib;

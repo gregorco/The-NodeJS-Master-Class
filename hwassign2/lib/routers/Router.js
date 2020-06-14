@@ -19,7 +19,7 @@ class Router {
 
     dispatch(data, callback) {
         debug("callback inputdata:",data);
-        let acceptableMethods = ['post','get','put','delete'];
+        let acceptableMethods = [];
         let reqMethod = data.method.toLowerCase();
         if(acceptableMethods.indexOf(reqMethod) != -1) {
             this[reqMethod](data, callback);

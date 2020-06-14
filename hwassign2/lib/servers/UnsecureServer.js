@@ -20,7 +20,10 @@ class UnsecureServer {
             'user': this.userRouter,
             'token':this.tokenRouter,
             'login':this.loginRouter,
-            'logout':this.logoutRouter
+            'logout':this.logoutRouter,
+            'menu':this.menuRouter,
+            'cart':this.cartRouter,
+            'order':this.orderRouter
         };
     }
 
@@ -52,6 +55,28 @@ class UnsecureServer {
     get logoutRouter() {
         return this._logoutRouter;
     }
+    set menuRouter(rtr) {
+        this._menuRouter = rtr;
+        this.routerMap['menu'] = this._menuRouter;
+    }
+    get menuRouter() {
+        return this._menuRouter;
+    }
+    set cartRouter(rtr) {
+        this._cartRouter = rtr;
+        this.routerMap['cart'] = this._cartRouter;
+    }
+    get cartRouter() {
+        return this._cartRouter;
+    }
+    set orderRouter(rtr) {
+        this._orderRouter = rtr;
+        this.routerMap['order'] = this._orderRouter;
+    }
+    get orderRouter() {
+        return this._orderRouter;
+    }
+
     getTimestamp(date) {
         return {  unix: date.getTime(),  utc: date.toUTCString()};
     }
@@ -154,12 +179,5 @@ class UnsecureServer {
     }
 
 };
-
-
-let t1 = utils.parseJsonToObj('{\n' +
-    '        "phone": "8833727101",\n' +
-    '        "password": "mypassw01"\n' +
-    '}');
-debug('t1:',t1);
 
 module.exports = UnsecureServer;

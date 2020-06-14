@@ -23,13 +23,17 @@ utils.hash = function(str) {
 
 utils.parseJsonToObj = function(str) {
     debug('parseJsonToObj::str',str);
-  try {
-      return JSON.parse(str);
-  }
-  catch(e) {
-      debug('parseJsonToObj::e',e);
-      return {};
-  }
+    if (typeof(str) != 'string' || str.length == 0) {
+        debug("No string to parse as JSON.");
+        return {};
+    } else {
+        try {
+            return JSON.parse(str);
+        } catch (e) {
+            debug('parseJsonToObj::e', e);
+            return {};
+        }
+    }
 };
 utils.getRandomSection = function() {
     return Math.random().toString(36).substring(2, 15);

@@ -38,8 +38,9 @@ class TokenCrudRouter extends CrudRouter {
                     if(hashedPassword == userData.hashedPassword) {
                         // create user object
                         let tokenId = utils.getRandomString(20);
-                        // define expiration date
+                        // define expiration date to be one hour into the future
                         let expireDate = Date.now() + 1000 * 60 * 60;
+                        debug("New token "+tokenId+" expires: "+new Date(expireDate));
                         let tokenObj = {
                             'phone': phone,
                             'tokenId': tokenId,
