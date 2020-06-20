@@ -10,6 +10,11 @@ const utils = require('../utils');
 const util = require('util');
 const debug = util.debuglog('LoginRouter');
 
+const handle = (promise) => {
+    return promise
+        .then(data => ([undefined, data]))
+        .catch(error => Promise.resolve([error, undefined]));
+}
 
 class LoginRouter extends RpcRouter {
     constructor() {
@@ -33,7 +38,7 @@ class LoginRouter extends RpcRouter {
 // Required properties: email, password
 // Optional properties: none
 // Validate the user's existence and matching password, then return a new token
-    post(data, callback) {
+    async post(data, callback) {
         debug('data:', data);
         // verify that all required properties were sent
         let missingProperties = '';
@@ -47,66 +52,66 @@ class LoginRouter extends RpcRouter {
         } else {
             // check if this user already exists by searching all user's for a matching emailAddr
             // get all the checks
-            _data.list('users', function(err, uids) {
-                if(!err && uids && uids.length > 0) {
-                    let foundUser = false;
-                    let usersProcessed = 0;
-                    uids.forEach(async function(uid){
-                        // read in the user data
-                        debug('Comparing to ',uid);
-                        await _data.read('users', uid, async function (err, userData) {
-                            usersProcessed++;
-                            if (!err && userData) {
-                                // does this user's email and password match the user logging in?
-                                let hashedPassword = utils.hash(password.trim());
-                                    if (emailAddr == userData.emailAddr) {
-                                        if (hashedPassword == userData.hashedPassword) {
-                                            // create user object
-                                            foundUser = true;
-                                            let tokenId = utils.getRandomString(20);
-                                            // define expiration date
-                                            let expireDate = Date.now() + 1000 * 60 * 60;
-                                            debug("New token "+tokenId+" expires: "+new Date(expireDate));
-                                            let tokenObj = {
-                                                'uid': uid,
+            let [listErr, uids] = await handle(_data.list('users'));
+            if(!listErr && uids && uids.length > 0) {
+                let foundUser = false;
+                let usersProcessed = 0;
+                for (const uid of uids) {
+                    // read in the user data
+                    debug('Comparing to ', uid);
+                    let [readErr, userData] = await handle(_data.read('users', uid));
+                    usersProcessed++;
+                    if (!readErr && userData) {
+                        // does this user's email and password match the user logging in?
+                        let hashedPassword = utils.hash(password.trim());
+                        if (emailAddr == userData.emailAddr) {
+                            if (hashedPassword == userData.hashedPassword) {
+                                // create user object
+                                foundUser = true;
+                                let tokenId = utils.getRandomString(20);
+                                // define expiration date
+                                let expireDate = Date.now() + 1000 * 60 * 60;
+                                debug("New token " + tokenId + " expires: " + new Date(expireDate));
+                                let tokenObj = {
+                                    'uid': uid,
 //                                                'emailAddr': userData.emailAddr,
-                                                'tokenId': tokenId,
-                                                'expires': expireDate
-                                            };
-                                            // create new token file
-                                            await _data.create('tokens', tokenId, tokenObj, function (err) {
-                                                debug('create status: ' + err);
-                                                sentCallback = true;
-                                                if (!err) {
-                                                    callback(200, tokenObj);
-                                                } else {
-                                                    callback(500, {'Error': err});
-                                                }
-                                            });
-                                        } else {
-                                            foundUser = true;
-                                            debug('Bad password');
-                                            sentCallback = true;
-                                            callback(400, {'Error': 'Incorrect password.'})
-                                        }
-                                    } else {
-                                        if (usersProcessed == uids.length && !foundUser && !sentCallback) {
-                                            sentCallback = true;
-                                            debug('User not found.');
-                                            callback(400, {'Error':'User not found.'});
-                                        }
-                                    }
+                                    'tokenId': tokenId,
+                                    'expires': expireDate
+                                };
+                                // create new token file
+                                let [createErr, void1] = await handle(_data.create('tokens', tokenId, tokenObj));
+                                debug('create status: ' + createErr);
+                                sentCallback = true;
+                                if (!createErr) {
+                                    callback(200, tokenObj);
                                 } else {
-                                    debug("Error: reading one of the user's data.");
+                                    callback(500, createErr);
                                 }
-                            });
-                        });
-                } else {
-                    debug('Error: Could not find any users to process.');
-                    sentCallback = true;
-                    callback(400, {'Error': 'No users found.'});
+                            } else {
+                                foundUser = true;
+                                debug('Bad password');
+                                sentCallback = true;
+                                callback(400, {'Error': 'Incorrect password.'})
+                            }
+                        } else {
+                            if (usersProcessed == uids.length && !foundUser && !sentCallback) {
+                                sentCallback = true;
+                                debug('User not found.');
+                                callback(400, {'Error': 'User not found.'});
+                            }
+                        }
+                    } else {
+                        debug("Error: reading one of the user's data.");
+                    }
+                    if (sentCallback) {
+                        break;
+                    }
                 }
-            });
+            } else {
+                debug('Error: Could not find any users to process.');
+                sentCallback = true;
+                callback(400, {'Error': 'No users found.'});
+            }
         }
     };
 }

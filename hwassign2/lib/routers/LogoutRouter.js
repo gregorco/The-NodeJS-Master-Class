@@ -10,6 +10,11 @@ const utils = require('../utils');
 const util = require('util');
 const debug = util.debuglog('LogoutRouter');
 
+const handle = (promise) => {
+    return promise
+        .then(data => ([undefined, data]))
+        .catch(error => Promise.resolve([error, undefined]));
+}
 
 class LogoutRouter extends RpcRouter {
     constructor() {
@@ -32,28 +37,25 @@ class LogoutRouter extends RpcRouter {
 // Required data: phone
 // Optional data: none
 // checks to only allow authenticated users to update their own record
-    post(data, callback) {
+    async post(data, callback) {
         // authenticate the user
         let tokenId = typeof (data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
         if (tokenId) {
             // get the existing  object
-            _data.read('tokens', tokenId, function (err, tokenObj) {
-                if (!err && tokenObj) {
-
-                    _data.delete('tokens', tokenId, function (err) {
-                        debug('delete status: ' + err);
-                        if (!err) {
-                            callback(200);
-                        } else {
-                            callback(500, {'Error': err});
-                        }
-                    });
+            let [readErr, tokenObj] = await handle(_data.read('tokens', tokenId));
+            if (!readErr && tokenObj) {
+                let [deleteErr, void1] = await handle(_data.delete('tokens', tokenId));
+                debug('delete status: ' + deleteErr);
+                if (!deleteErr) {
+                    callback(200);
                 } else {
-                    callback(400, {'Error': 'Token not found. Either expired or logged out already.'});
+                    callback(500, deleteErr);
                 }
-            })
+            } else {
+                callback(400, {'Error': 'Token not found. Either expired or logged out already.'});
+            }
         } else {
-            callback(400, {'Error': 'Missing required input: tokenId.'})
+            callback(400, {'Error': 'Missing required input: tokenId, or invalid length.'})
         }
     }
 }

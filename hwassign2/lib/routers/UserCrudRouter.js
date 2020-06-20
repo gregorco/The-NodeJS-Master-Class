@@ -78,7 +78,7 @@ class UserCrudRouter extends CrudRouter {
                     let user = new User(userObj);
                     // create new user file
                     let [createErr, voidVal] = await handle(_data.create('users',uid,user));
-                    if (createErr) callback(500, {'Error':'Failed to create new user: '+emailAddr+' error:'+err});
+                    if (createErr) callback(500, {'Error':'Failed to create new user: '+emailAddr+' error:'+createErr.message});
                     callback(200);
                 } else {
                     callback(500, {'Error':'Failed to obscure password with hash. Aborted.'});
@@ -94,7 +94,7 @@ class UserCrudRouter extends CrudRouter {
     // Required data: uid
     // Optional data: none
     // checks to only allow authenticated users to get their own record
-    get(data, callback) {
+    async get(data, callback) {
         // get user file
         let qObj = data.queryStringObject;
         debug("GET: qObj:",qObj);
@@ -104,22 +104,20 @@ class UserCrudRouter extends CrudRouter {
             let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
             if(tokenId) {
                 // check that this token is valid for the given user/uid
-                _data.verifyToken(tokenId, uid, function(isValidToken) {
-                    if(isValidToken) {
-                        _data.read('users', uid, function (err, data) {
-                            debug('read status: ' + err);
-                            if (!err && data) {
-                                // remove the hashed password from returned data obj
-                                delete data.hashedPassword;
-                                callback(200, data);
-                            } else {
-                                callback(404);
-                            }
-                        });
+                let [verifyErr, isValidToken] = await handle(_data.verifyToken(tokenId, uid));
+                if(isValidToken) {
+                    let [readErr, data] = await handle(_data.read('users', uid));
+                    debug('read status: ' + readErr);
+                    if (!readErr && data) {
+                        // remove the hashed password from returned data obj
+                        delete data.hashedPassword;
+                        callback(200, data);
                     } else {
-                        callback(403, {'Error':'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'});
+                        callback(404);
                     }
-                });
+                } else {
+                    callback(403, {'Error':'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'});
+                }
             } else {
                 callback(400, {'Error':'Token missing or invalid length.'});
             }
@@ -131,7 +129,7 @@ class UserCrudRouter extends CrudRouter {
     // Required data: uid
     // Optional data: rest of properties
     // checks to only allow authenticated users to update their own record
-    put(data, callback) {
+    async put(data, callback) {
         // update user file
         let uid = (typeof(data.payload.uid) == 'string' && data.payload.uid.trim().length > 0) ? data.payload.uid.trim(): false;
 
@@ -152,42 +150,39 @@ class UserCrudRouter extends CrudRouter {
             let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
             if(tokenId) {
                 // check that this token is valid for the given user/uid
-                _data.verifyToken(tokenId, uid, function(isValidToken) {
-                    if(isValidToken) {
-                        // get the existing user object
-                        _data.read('users',uid,function(err, userObj) {
-                            if(!err && userObj) {
-                                if(firstName) {
-                                    userObj.firstName = firstName;
-                                }
-                                if(lastName) {
-                                    userObj.lastName = lastName;
-                                }
-                                if(password) {
-                                    userObj.hashedPassword = utils.hash(password);
-                                }
-                                if(phone) {
-                                    userObj.phone = phone;
-                                }
-                                if(streetAddr) {
-                                    userObj.streetAddr = streetAddr;
-                                }
-                                _data.update('users',uid, userObj,function(err) {
-                                    debug('update status: '+err);
-                                    if(!err) {
-                                        callback(200);
-                                    } else {
-                                        callback(500, {'Error': err});
-                                    }
-                                });
-                            } else {
-                                callback(400, {'Error':'User not found with uid:'+uid});
-                            }
-                        })
+                let [verifyErr, isValidToken] = await handle(_data.verifyToken(tokenId, uid));
+                if(isValidToken) {
+                    // get the existing user object
+                    let [readErr, userObj] = await handle(_data.read('users',uid));
+                    if(!readErr && userObj) {
+                        if(firstName) {
+                            userObj.firstName = firstName;
+                        }
+                        if(lastName) {
+                            userObj.lastName = lastName;
+                        }
+                        if(password) {
+                            userObj.hashedPassword = utils.hash(password);
+                        }
+                        if(phone) {
+                            userObj.phone = phone;
+                        }
+                        if(streetAddr) {
+                            userObj.streetAddr = streetAddr;
+                        }
+                        let [updateErr, void1] = await handle(_data.update('users',uid, userObj));
+                        debug('update status: '+updateErr);
+                        if(!updateErr) {
+                            callback(200);
+                        } else {
+                            callback(500, updateErr);
+                        }
                     } else {
-                        callback(403, {'Error':'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'})
+                        callback(400, {'Error':'User not found with uid:'+uid});
                     }
-                });
+                } else {
+                    callback(403, {'Error':'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'})
+                }
             } else {
                 callback(400, {'Error':'Token missing or invalid length.'});
             }
@@ -198,7 +193,95 @@ class UserCrudRouter extends CrudRouter {
 
     // delete user
     // Required params: uid
-    delete(data, callback) {
+    async delete(data, callback) {
+        let uid = (typeof(data.queryStringObject.uid) == 'string' && data.queryStringObject.uid.trim().length > 0) ? data.queryStringObject.uid.trim(): false;
+        if(uid) {
+            // authenticate the user
+            let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
+            if(tokenId) {
+                // check that this token is valid for the given user/uid
+                let [verifyErr, isValidToken] = await handle(_data.verifyToken(tokenId, uid));
+                if(isValidToken) {
+                    // get the existing user object
+                    let [readErr, userObj] = await handle(_data.read('users',uid));
+                    if(!readErr && userObj) {
+                        let [deleteErr, void1] = await handle(_data.delete('users',uid));
+                        debug('delete status: '+deleteErr);
+                        if(!deleteErr) { // successfully deleted user, so now clean up associated data
+                            let [cleanupErrMsg, voidcleanup] = await handle(this.cleanupData(userObj, tokenId));
+                            callback(200, (cleanupErrMsg?'Successfully deleted user but failed to completely cleanup data: ' +cleanupErrMsg:""));
+                        } else {
+                            callback(500, deleteErr);
+                        }
+                    } else {
+                        callback(400, {'Error':'User not found with uid:'+uid});
+                    }
+                } else {
+                    callback(403, {'Error':'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'})
+                }
+            } else {
+                callback(400, {'Error':'Token missing or invalid length.'});
+            }
+        } else {
+            callback(400, {'Error':'Missing required input: uid.'});
+        }
+
+    }
+
+    async cleanupData(userObj, tokenId) {
+        let cleanupErrMsg = undefined;
+        let undeletedOrderCount = 0;
+        let deletedOrderCount = 0;
+        // delete user's orders
+        let orders = typeof (userObj.orders) == 'object' && userObj.orders instanceof Array ? userObj.orders : [];
+        if (orders.length > 0) {
+            for (const orderObj of orders) {
+                let [deleteErr, void2] = await handle(_data.delete('orders', orderObj.id));
+                if (!deleteErr) {
+                    deletedOrderCount++;
+                } else {
+                    undeletedOrderCount++;
+                }
+            }
+            if (undeletedOrderCount > 0) {
+                cleanupErrMsg += 'Failed to delete '+undeletedOrderCount+ 'of '+orders.length+' orders. ';
+            }
+        }
+
+        // delete user's shopping cart
+        let cartObj = userObj.cart;
+        if (typeof (cartObj) == 'object') {
+            let [deleteErr, void5] = await handle(_data.delete('carts', cartObj.uid));
+            if (deleteErr) {
+                cleanupErrMsg += 'Failed to delete shopping cart. ';
+            }
+        }
+
+        // delete tokens for user
+        let [listErr, tokenIds] = await handle(_data.list('tokens'));
+        if(!listErr && tokenIds && tokenIds.length > 0) {
+            for (const tokenId of tokenIds) {
+                let [readErr, tokenObj] = await handle(_data.read('tokens', tokenId));
+                if (!readErr && tokenObj) {
+                    // if this token is for this user, then delete it
+                    if (userObj.uid == tokenObj.uid) {
+                        let [deleteErr, voidDel] = await handle(_data.delete('tokens', tokenId));
+                        if (deleteErr) {
+                            cleanupErrMsg += "Failed to delete token (" + tokenId + "). ";
+                        }
+                    }
+                }
+            }
+        }
+
+        if (cleanupErrMsg) {
+            throw new Error('Errors encountered while trying to cleanup user\'s data: ' + cleanupErrMsg);
+        }
+
+        return true;
+    }
+
+    delete_old2(data, callback) {
         let uid = (typeof(data.queryStringObject.uid) == 'string' && data.queryStringObject.uid.trim().length > 0) ? data.queryStringObject.uid.trim(): false;
         if(uid) {
             // authenticate the user

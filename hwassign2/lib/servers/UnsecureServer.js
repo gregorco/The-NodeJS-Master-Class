@@ -159,7 +159,11 @@ class UnsecureServer {
                 let retStatusCode = typeof (statusCode) == 'number' ? statusCode : 200;
                 let payloadString = "{}";
                 if (typeof (responseDataObj) == 'object') {
-                    payloadString = JSON.stringify(responseDataObj);
+                    if (responseDataObj instanceof Error) {
+                        payloadString = JSON.stringify({'Error': responseDataObj.message+"\n"+responseDataObj.stack});
+                    } else {
+                        payloadString = JSON.stringify(responseDataObj);
+                    }
                 } else {
                     payloadString = responseDataObj;
                 }

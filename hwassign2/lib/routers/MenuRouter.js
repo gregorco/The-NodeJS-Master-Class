@@ -10,6 +10,12 @@ const _data = require('../data');
 const Menu = require('../Menu');
 const debug = util.debuglog('MenuRouter');
 
+const handle = (promise) => {
+    return promise
+        .then(data => ([undefined, data]))
+        .catch(error => Promise.resolve([error, undefined]));
+}
+
 class MenuRouter extends RpcRouter {
 
     constructor() {
@@ -28,7 +34,22 @@ class MenuRouter extends RpcRouter {
         }
     }
 
-    get(data, callback) {
+    async get(data, callback) {
+        // get user file
+        let qObj = data.queryStringObject;
+        debug("GET: qObj:",qObj);
+        let menuItemId;
+        if(typeof(qObj["item"]) == 'string') {
+            menuItemId = qObj["item"];
+        }
+        if (typeof (menuItemId) == 'string') {
+            callback(200, new Menu().menuItems[menuItemId]);
+        } else {
+            callback(200, new Menu().menuItems);
+        }
+    }
+
+    async get_old(data, callback) {
         // get user file
         let qObj = data.queryStringObject;
         debug("GET: qObj:",qObj);
@@ -38,21 +59,21 @@ class MenuRouter extends RpcRouter {
         }
         let tokenId = typeof(data.headers.tokenid) == 'string' && data.headers.tokenid.trim().length == 20 ? data.headers.tokenid.trim() : false;
         if(tokenId) {                // check that this token is valid for the given user/phone
-            _data.verifyToken(tokenId, null,function(isValidToken) {
-                if (isValidToken) {
-                    if (typeof (menuItemId) == 'string') {
-                        callback(200, new Menu().menuItems[menuItemId]);
-                    } else {
-                        callback(200, new Menu().menuItems);
-                    }
+            let [verifyErr, isValidToken] = await handle(_data.verifyToken(tokenId, null));
+            if (isValidToken) {
+                if (typeof (menuItemId) == 'string') {
+                    callback(200, new Menu().menuItems[menuItemId]);
                 } else {
-                    callback(403, {'Error': 'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'})
+                    callback(200, new Menu().menuItems);
                 }
-            });
+            } else {
+                callback(403, {'Error': 'User not authenticated. Missing \'tokenid\' in headers, or invalid tokenid.'})
+            }
         } else {
             callback(400, {'Error':'User not logged in. Token missing or invalid length.'})
         }
     }
+
 }
 
 

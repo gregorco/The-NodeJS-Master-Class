@@ -9,6 +9,12 @@ const utils = require('../utils');
 const util = require('util');
 const debug = util.debuglog('TokenCrudRouter');
 
+const handle = (promise) => {
+    return promise
+        .then(data => ([undefined, data]))
+        .catch(error => Promise.resolve([error, undefined]));
+}
+
 class TokenCrudRouter extends CrudRouter {
     constructor() {
         super();
@@ -19,7 +25,7 @@ class TokenCrudRouter extends CrudRouter {
 // Create token
 // Required properties: phone, password
 // Optional properties: none
-    post(data, callback) {
+    async post(data, callback) {
         debug('data:',data);
         // verify that all required properties were sent
         let missingProperties = '';
@@ -30,61 +36,57 @@ class TokenCrudRouter extends CrudRouter {
             callback(400, {'Error': 'Missing/invalid properties: '+missingProperties});
         } else {
             // check if this user already exists
-            _data.read('users',phone, function(err,userData) {
-                debug('POST: _data.read err:',err);
-                if(!err && userData) {
+            let [readErr, userData] = await handle(_data.read('users',phone));
+            debug('POST: _data.read err:',readErr);
+            if(!readErr && userData) {
 
-                    let hashedPassword = utils.hash(password.trim());
-                    if(hashedPassword == userData.hashedPassword) {
-                        // create user object
-                        let tokenId = utils.getRandomString(20);
-                        // define expiration date to be one hour into the future
-                        let expireDate = Date.now() + 1000 * 60 * 60;
-                        debug("New token "+tokenId+" expires: "+new Date(expireDate));
-                        let tokenObj = {
-                            'phone': phone,
-                            'tokenId': tokenId,
-                            'expires': expireDate
-                        };
-                        // create new token file
-                        _data.create('tokens',tokenId,tokenObj,function(err) {
-                            debug('create status: '+err);
-                            if(!err) {
-                                callback(200, tokenObj);
-                            } else {
-                                callback(500, {'Error':err});
-                            }
-                        });
+                let hashedPassword = utils.hash(password.trim());
+                if(hashedPassword == userData.hashedPassword) {
+                    // create user object
+                    let tokenId = utils.getRandomString(20);
+                    // define expiration date to be one hour into the future
+                    let expireDate = Date.now() + 1000 * 60 * 60;
+                    debug("New token "+tokenId+" expires: "+new Date(expireDate));
+                    let tokenObj = {
+                        'phone': phone,
+                        'tokenId': tokenId,
+                        'expires': expireDate
+                    };
+                    // create new token file
+                    let [createErr, voidCreate] = await handle(_data.create('tokens',tokenId,tokenObj));
+                    debug('create status: '+createErr);
+                    if(!createErr) {
+                        callback(200, tokenObj);
                     } else {
-                        callback(400, {'Error':'Password does not match.'})
+                        callback(500, createErr);
                     }
                 } else {
-                    debug("err: ",err);
-                    debug("data:", data);
-                    callback(400, {'Error': 'User not found.'});
+                    callback(400, {'Error':'Password does not match.'})
                 }
-            });
+            } else {
+                debug("readErr: ",readErr);
+                debug("data:", data);
+                callback(400, {'Error': 'User not found.'});
+            }
         }
     };
 
 // Required data: tokenId
 // Optional data: none
 // @TODO: add check to only allow authenticated users to access their own record
-
-    get(data, callback) {
+    async get(data, callback) {
         // get token
         let qObj = data.queryStringObject;
         debug("GET: qObj:",qObj);
         if(typeof(qObj["tokenId"]) == 'string' && qObj["tokenId"].trim().length == 20) {
-            _data.read('tokens',qObj["tokenId"].trim(),function(err, data) {
-                debug('read status: '+err);
-                if(!err && data) {
-                    // remove the hashed password from returned data obj
-                    callback(200, data);
-                } else {
-                    callback(404);
-                }
-            });
+            let [readErr, data] = await handle(_data.read('tokens',qObj["tokenId"].trim()));
+            debug('read status: '+readErr);
+            if(!readErr && data) {
+                // remove the hashed password from returned data obj
+                callback(200, data);
+            } else {
+                callback(404);
+            }
         } else {
             callback(400, {'Error':'No valid tokenId provided. Must be 20 chars in length.'});
         }
@@ -93,33 +95,31 @@ class TokenCrudRouter extends CrudRouter {
 // Required data: tokenId, extend
 // Optional data: none
 // @TODO: add check to only allow authenticated users to update their own record
-    put(data, callback) {
+    async put(data, callback) {
         // update expiration of token
         let tokenId = (typeof(data.payload.tokenId) == 'string' && data.payload.tokenId.trim().length == 20) ? data.payload.tokenId.trim(): false;
         let extend = (typeof(data.payload.extend) == 'boolean' ? data.payload.extend: false);
 
         if(tokenId && extend) {
             // get the existing token object
-            _data.read('tokens',tokenId,function(err, tokenObj) {
-                if(!err && tokenObj) {
-                    // check that token is not already expired before continuing
-                    if(tokenObj.expires > Date.now()) {
-                        tokenObj.expires = Date.now() + 1000 * 60 * 60;
-                        _data.update('tokens', tokenId, tokenObj, function (err) {
-                            debug('update status: ' + err);
-                            if (!err) {
-                                callback(200);
-                            } else {
-                                callback(500, {'Error': err});
-                            }
-                        });
+            let [readErr, tokenObj] = await handle(_data.read('tokens',tokenId));
+            if(!readErr && tokenObj) {
+                // check that token is not already expired before continuing
+                if(tokenObj.expires > Date.now()) {
+                    tokenObj.expires = Date.now() + 1000 * 60 * 60;
+                    let [updateErr, voidUpdate] = await handle(_data.update('tokens', tokenId, tokenObj));
+                    debug('update status: ' + updateErr);
+                    if (!updateErr) {
+                        callback(200);
                     } else {
-                        callback(400, {'Error':'Token already expired; cannot extend.'})
+                        callback(500, updateErr);
                     }
                 } else {
-                    callback(404, {'Error':'Token not found'});
+                    callback(400, {'Error':'Token already expired; cannot extend.'})
                 }
-            })
+            } else {
+                callback(404, {'Error':'Token not found'});
+            }
         } else {
             if(!tokenId) {
                 callback(400, {'Error':'Missing required input: tokenId.'})
@@ -133,55 +133,27 @@ class TokenCrudRouter extends CrudRouter {
 // Required params: phone
 // @TODO add support to only allow authenticated user to delete his record
 // @TODO add support to clean up any associated records/data/files with this deleted user
-    delete(data, callback) {
+    async delete(data, callback) {
         let tokenId = (typeof(data.queryStringObject.tokenId) == 'string' && data.queryStringObject.tokenId.trim().length == 20) ? data.queryStringObject.tokenId.trim(): false;
 
         if(tokenId) {
             // get the existing  object
-            _data.read('tokens',tokenId,function(err, tokenObj) {
-                if(!err && tokenObj) {
-
-                    _data.delete('tokens',tokenId,function(err) {
-                        debug('delete status: '+err);
-                        if(!err) {
-                            callback(200);
-                        } else {
-                            callback(500, {'Error': err});
-                        }
-                    });
+            let [readErr, tokenObj] = await handle(_data.read('tokens',tokenId));
+            if(!readErr && tokenObj) {
+                let [deleteErr, voidDel] = await handle(_data.delete('tokens',tokenId));
+                debug('delete status: '+deleteErr);
+                if(!deleteErr) {
+                    callback(200);
                 } else {
-                    callback(400, {'Error':'Token not found'});
+                    callback(500, deleteErr);
                 }
-            })
+            } else {
+                callback(400, {'Error':'Token not found'});
+            }
         } else {
             callback(400, {'Error':'Missing required input: tokenId.'})
         }
-
     }
-
-// verify that the given token is valid: exists for the given phone and is not expired
-    verifyToken_old(tokenId, phone, callback) {
-        let tokId = (typeof(tokenId) == 'string' && tokenId.trim().length == 20 ? tokenId.trim(): false);
-
-        if(tokId) {
-            // get the existing  object
-            _data.read('tokens',tokId,function(err, tokenObj) {
-                if (!err && tokenObj) {
-                    // check that the phone associated with the token matches the given phone and that the token has not already expired as of now
-                    if(tokenObj.phone == phone && tokenObj.expires > Date.now()) {
-                        callback(true);
-                    } else {
-                        callback(false);
-                    }
-                } else {
-                    callback(false);
-                }
-            });
-        } else {
-            callback(false);
-        }
-    }
-
 
 }
 
